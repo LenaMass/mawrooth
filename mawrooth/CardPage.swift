@@ -71,7 +71,7 @@ struct CardPage: View
                     ZStack {
                         Circle()
                             .fill(Color(hex: "8D87C0")) // circle color
-                            .frame(width: 61, height: 60)
+                            .frame(width: 60, height: 60)
                         
                         Image(systemName: "chevron.backward")
                             .font(.system(size: 24, weight: .bold))
