@@ -48,16 +48,28 @@
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
+				laut.swift,
 			);
 			target = BF01BFDF2E8BF30A00ADC508 /* mawrooth */;
 		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
+/* Begin PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet section */
+		AFD8E15A2E8EBBF3007C1052 /* Exceptions for "mawrooth" folder in "Copy Bundle Resources" phase from "mawrooth" target */ = {
+			isa = PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet;
+			buildPhase = BF01BFDE2E8BF30A00ADC508 /* Resources */;
+			membershipExceptions = (
+				laut.swift,
+			);
+		};
+/* End PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		BF01BFE22E8BF30A00ADC508 /* mawrooth */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
 				BF92C4D22E8E19A600DDAA62 /* Exceptions for "mawrooth" folder in "mawrooth" target */,
+				AFD8E15A2E8EBBF3007C1052 /* Exceptions for "mawrooth" folder in "Copy Bundle Resources" phase from "mawrooth" target */,
 				BF01C0582E8E16D500ADC508 /* Exceptions for "mawrooth" folder in "mawroothTests" target */,
 				BF01C0592E8E16D500ADC508 /* Exceptions for "mawrooth" folder in "mawroothUITests" target */,
 			);
