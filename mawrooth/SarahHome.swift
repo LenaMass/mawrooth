@@ -34,7 +34,7 @@ struct ContentView: View {
             // I'm keeping it as you provided, but be aware of the large negative padding.
             ZStack{
                 Image("Z")       // original size preserved
-                    .padding(.top, -368)
+                    .padding(.top, -359)
                     .padding(.leading, -68)
                 Spacer()
             }
