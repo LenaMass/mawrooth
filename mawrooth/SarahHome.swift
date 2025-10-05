@@ -60,14 +60,14 @@ struct ContentView: View {
                         .font(.largeTitle)
                         .fontWeight(.heavy)
                         .foregroundColor(.white)
-                        .frame(width: 200, height: 72)
+                        .frame(width: 195, height: 65)
                         .background(customOrange)
                         .cornerRadius(55)
                         .shadow(color: Color.black.opacity(0.4), radius: 6, x: 0, y: 4)
                 }
                 .scaleEffect(startButtonScale)
                 
-                Spacer().frame(height: 20)
+                Spacer().frame(height: 10)
                 
                 // Icon Button
                 Button(action: {
@@ -80,10 +80,10 @@ struct ContentView: View {
                         print("")
                     }
                 }) {
-                    Image(systemName: "book.fill")
+                    Image(systemName: "greetingcard")
                         .font(.title)
-                        .foregroundColor(.white)
-                        .frame(width: 200, height: 72)
+                        .foregroundColor(Color(hex: "#F1B438"))
+                        .frame(width: 145, height: 50)
                         .background(customPurple)
                         .cornerRadius(55)
                         .shadow(color: Color.black.opacity(0.4), radius: 6, x: 0, y: 4)
