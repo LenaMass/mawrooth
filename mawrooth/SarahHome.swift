@@ -1,50 +1,18 @@
-//
-//  SarahHome.swift
-//  mawrooth
-//
-//  Created by ساره القرني on 10/04/1447 AH.
-//
 import SwiftUI
-/*
-extension Color {
-    /// Initializes a Color from a hex string (e.g., "#FF4500" or "FF4500").
-    /// - Parameter hex: The hexadecimal color string.
-    init(hex: String) {
-        let hex = hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
-        var int: UInt64 = 0
-        Scanner(string: hex).scanHexInt64(&int)
-        
-        // Determine if the hex string includes the alpha component (RGBA or RRGGBBAA)
-        let a, r, g, b: UInt64
-        switch hex.count {
-        case 3: // RGB (e.g., F0F)
-            (a, r, g, b) = (255, (int >> 8) * 17, (int >> 4 & 0xF) * 17, (int & 0xF) * 17)
-        case 6: // RRGGBB (e.g., FF4500)
-            (a, r, g, b) = (255, int >> 16, int >> 8 & 0xFF, int & 0xFF)
-        case 8: // RRGGBBAA (e.g., FF4500FF)
-            (r, g, b, a) = (int >> 24, int >> 16 & 0xFF, int >> 8 & 0xFF, int & 0xFF)
-        default:
-            (a, r, g, b) = (255, 0, 0, 0) // Default to black if format is wrong
-        }
-        
-        self.init(
-            .sRGB,
-            red: Double(r) / 255,
-            green: Double(g) / 255,
-            blue: Double(b) / 255,
-            opacity: Double(a) / 255
-        )
-    }
-}
-*/
+
 struct ContentView: View {
+    
     // Each button has its own scale state
     @State private var startButtonScale: CGFloat = 1.0
     @State private var iconButtonScale: CGFloat = 1.0
     
+    // 🎯 KEY: State to control the modal presentation of CardPage
+    @State private var showingCardPage = false
+    
     // Define the custom colors based on the image's hex values
-    let customOrange = Color(red: 238/255, green: 100/255, blue: 40/255) // The orange text color
-    let customPurple = Color(red: 141/255, green: 135/255, blue: 192/255) // The purple text color
+    // Assuming 238/100/40 is #EE6428 and 141/135/192 is #8D87C0
+    let customOrange = Color(red: 238/255, green: 100/255, blue: 40/255)
+    let customPurple = Color(red: 141/255, green: 135/255, blue: 192/255)
     
     private func animateButton(scale: inout CGFloat, isPressed: Bool) {
         withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
@@ -53,43 +21,46 @@ struct ContentView: View {
     }
 
     var body: some View {
+        // The main view container does not need a NavigationStack here
         ZStack {
             // Background
-      
             Image("Ima")
                 .resizable()
                 .scaledToFill()
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .ignoresSafeArea()
+            
+            // This ZStack containing Image("Z") looks complex and might be causing issues.
+            // I'm keeping it as you provided, but be aware of the large negative padding.
             ZStack{
-                Image("Z")        // original size preserved
-                     .padding(.top, -368)  // optional, distance from top of screen
-                     .padding(.leading, -68)
-                 
-                 Spacer()  }
+                Image("Z")       // original size preserved
+                    .padding(.top, -368)
+                    .padding(.leading, -68)
+                Spacer()
+            }
             .ignoresSafeArea()
             
-            
-            
             VStack {
-            
+                
                 Image("TXT")
-               .padding(.top, 50) // Adjust top padding as neede
+                    .padding(.top, 50)
+                
                 Spacer()
 
-                // "ابدأ" Button
+                // "ابدأ" Button (Start Button)
                 Button(action: {
                     animateButton(scale: &startButtonScale, isPressed: true)
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                         animateButton(scale: &startButtonScale, isPressed: false)
-                        print("ابدأ Button Tapped!")
+                        
+                     
                     }
                 }) {
                     Text("ابدأ")
                         .font(.largeTitle)
                         .fontWeight(.heavy)
                         .foregroundColor(.white)
-                        .frame(width: 200, height: 72) // fixed size
+                        .frame(width: 200, height: 72)
                         .background(customOrange)
                         .cornerRadius(55)
                         .shadow(color: Color.black.opacity(0.4), radius: 6, x: 0, y: 4)
@@ -104,22 +75,29 @@ struct ContentView: View {
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                         animateButton(scale: &iconButtonScale, isPressed: false)
                         print("Icon Button Tapped!")
+                        // 🎯 ACTION: Toggles the state to present CardPage
+                        showingCardPage = true
+                        print("")
                     }
                 }) {
                     Image(systemName: "book.fill")
                         .font(.title)
                         .foregroundColor(.white)
-                        .frame(width: 200, height: 72) // same width & height as orange button
+                        .frame(width: 200, height: 72)
                         .background(customPurple)
                         .cornerRadius(55)
                         .shadow(color: Color.black.opacity(0.4), radius: 6, x: 0, y: 4)
                 }
                 .scaleEffect(iconButtonScale)
                 
-                Spacer() // This will now occupy the remaining space at the bottom
+                Spacer() // Occupy remaining space
             }
-            
-            .padding(.bottom, -200)
+            .padding(.bottom, -200) // Your original padding
+        }
+        // 🎯 KEY: This presents CardPage when showingCardPage is true.
+        .fullScreenCover(isPresented: $showingCardPage) {
+            // When CardPage calls dismiss(), the user returns here.
+            CardPage()
         }
     }
 }
@@ -127,4 +105,3 @@ struct ContentView: View {
 #Preview {
     ContentView()
 }
-
