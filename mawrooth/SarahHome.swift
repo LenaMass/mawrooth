@@ -1,5 +1,8 @@
 import SwiftUI
 
+// Assume the Haptics, Font extension, Color extension, GCard, GameVM, GameScreen, and CardPage structs
+// from the previous script are available in the same file or imported module.
+
 struct ContentView: View {
     
     // Each button has its own scale state
@@ -10,7 +13,6 @@ struct ContentView: View {
     @State private var showingCardPage = false
     
     // Define the custom colors based on the image's hex values
-    // Assuming 238/100/40 is #EE6428 and 141/135/192 is #8D87C0
     let customOrange = Color(red: 238/255, green: 100/255, blue: 40/255)
     let customPurple = Color(red: 141/255, green: 135/255, blue: 192/255)
     
@@ -21,87 +23,103 @@ struct ContentView: View {
     }
 
     var body: some View {
-        // The main view container does not need a NavigationStack here
-        ZStack {
-            // Background
-            Image("Ima")
-                .resizable()
-                .scaledToFill()
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        // 🚨 IMPORTANT: Wrap in NavigationStack to allow NavigationLink to work
+        NavigationStack {
+            ZStack {
+                // Background
+                Image("Ima")
+                    .resizable()
+                    .scaledToFill()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .ignoresSafeArea()
+                
+                // This ZStack containing Image("Z") looks complex and might be causing issues.
+                // I'm keeping it as you provided, but be aware of the large negative padding.
+                ZStack{
+                    Image("Z")
+                        .padding(.top, -359)
+                        .padding(.leading, -68)
+                    Spacer()
+                }
                 .ignoresSafeArea()
-            
-            // This ZStack containing Image("Z") looks complex and might be causing issues.
-            // I'm keeping it as you provided, but be aware of the large negative padding.
-            ZStack{
-                Image("Z")       // original size preserved
-                    .padding(.top, -359)
-                    .padding(.leading, -68)
-                Spacer()
-            }
-            .ignoresSafeArea()
-            
-            VStack {
                 
-                Image("TXT")
-                    .padding(.top, 50)
-                
-                Spacer()
+                VStack {
+                    
+                    Image("TXT")
+                        .padding(.top, 50)
+                    
+                    Spacer()
 
-                // "ابدأ" Button (Start Button)
-                Button(action: {
-                    animateButton(scale: &startButtonScale, isPressed: true)
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                        animateButton(scale: &startButtonScale, isPressed: false)
-                        
-                     
+                    // "ابدأ" Button (Start Button) - Now a NavigationLink
+                    // We keep the Button style inside the NavigationLink
+                    NavigationLink {
+                        // 🎯 ACTION: Navigate to the GameScreen
+                        GameScreen()
+                    } label: {
+                        Text("ابدأ")
+                        // ⚠️ Note: I'm replacing the custom font with a standard one
+                            // as "TheYearofHandicrafts-Bold" is likely missing.
+                            // If you have the font file, ensure it's imported correctly.
+                            .font(.system(size: 30, weight: .heavy))
+                            .fontWeight(.heavy)
+                            .foregroundColor(.white)
+                            .frame(width: 180, height: 60)
+                            .background(customOrange)
+                            .cornerRadius(55)
+                            .shadow(color: Color.black.opacity(0.4), radius: 6, x: 5, y: 4)
+                            // Apply scale effect for visual feedback
+                            .scaleEffect(startButtonScale)
+                            // Use a button style to capture press and animate the scale effect
+                            .simultaneousGesture(
+                                DragGesture(minimumDistance: 0)
+                                    .onChanged { _ in
+                                        animateButton(scale: &startButtonScale, isPressed: true)
+                                    }
+                                    .onEnded { _ in
+                                        animateButton(scale: &startButtonScale, isPressed: false)
+                                    }
+                            )
                     }
-                }) {
-                    Text("ابدأ")
-                        .font(.largeTitle)
-                        .fontWeight(.heavy)
-                        .foregroundColor(.white)
-                        .frame(width: 195, height: 65)
-                        .background(customOrange)
-                        .cornerRadius(55)
-                        .shadow(color: Color.black.opacity(0.4), radius: 6, x: 0, y: 4)
-                }
-                .scaleEffect(startButtonScale)
-                
-                Spacer().frame(height: 10)
-                
-                // Icon Button
-                Button(action: {
-                    animateButton(scale: &iconButtonScale, isPressed: true)
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                        animateButton(scale: &iconButtonScale, isPressed: false)
-                        print("Icon Button Tapped!")
-                        // 🎯 ACTION: Toggles the state to present CardPage
-                        showingCardPage = true
-                        print("")
+                    
+                    Spacer().frame(height: 10)
+                    
+                    // Icon Button (Stays a regular Button presenting CardPage modally)
+                    Button(action: {
+                        animateButton(scale: &iconButtonScale, isPressed: true)
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                            animateButton(scale: &iconButtonScale, isPressed: false)
+                            showingCardPage = true
+                        }
+                    }) {
+                        Image(systemName: "book.fill")
+                            .font(.title)
+                            .foregroundColor(.white)
+                            .frame(width: 145, height: 50)
+                            .background(customPurple)
+                            .cornerRadius(55)
+                            .shadow(color: Color.black.opacity(0.4), radius: 6, x: 5, y: 4)
                     }
-                }) {
-                    Image(systemName: "greetingcard")
-                        .font(.title)
-                        .foregroundColor(Color(hex: "#F1B438"))
-                        .frame(width: 145, height: 50)
-                        .background(customPurple)
-                        .cornerRadius(55)
-                        .shadow(color: Color.black.opacity(0.4), radius: 6, x: 0, y: 4)
+                    .scaleEffect(iconButtonScale)
+                    .simultaneousGesture(
+                        DragGesture(minimumDistance: 0)
+                            .onChanged { _ in
+                                animateButton(scale: &iconButtonScale, isPressed: true)
+                            }
+                            .onEnded { _ in
+                                animateButton(scale: &iconButtonScale, isPressed: false)
+                            }
+                    )
+                    
+                    Spacer() // Occupy remaining space
                 }
-                .scaleEffect(iconButtonScale)
-                
-                Spacer() // Occupy remaining space
+                .padding(.bottom, -200) // Your original padding
             }
-            .padding(.bottom, -200) // Your original padding
         }
         // 🎯 KEY: This presents CardPage when showingCardPage is true.
         .fullScreenCover(isPresented: $showingCardPage) {
-            // When CardPage calls dismiss(), the user returns here.
             CardPage()
         }
-        
     }
-    
 }
 
 #Preview {

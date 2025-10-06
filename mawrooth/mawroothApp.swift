@@ -11,7 +11,7 @@ import SwiftUI
 struct mawroothApp: App {
     var body: some Scene {
         WindowGroup {
-            sara()
+            ContentView()
         }
     }
 }

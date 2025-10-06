@@ -47,15 +47,19 @@ struct CardPage: View {
     let iconColor = Color(hex: "F1B438")
     private let titleVerticalOffset: CGFloat = 16
     
-    private func customToolbarButton(systemName: String) -> some View {
+    // 💡 FIX: Modified customToolbarButton to accept an icon size and weight
+    private func customToolbarButton(systemName: String, size: CGFloat = 20, weight: Font.Weight = .bold) -> some View {
         ZStack {
+            // Uncomment this if you want the purple circle background back, otherwise it's just the icon
+            /*
             Circle()
                 .fill(circleColor)
                 .frame(width: 40, height: 40)
+            */
             
             Image(systemName: systemName)
-                .font(.system(size: 20, weight: .bold))
-                .foregroundColor(iconColor)
+                .font(.system(size: size, weight: weight)) // <--- Controls the size
+                .foregroundColor(circleColor) // Used circleColor for the tint as in your setup
         }
     }
 
@@ -66,43 +70,37 @@ struct CardPage: View {
                 // 1. BACKGROUND LAYER
                 Image("BG")
                     .resizable()
-                    //.aspectRatio(contentMode: .fill)
-                    .ignoresSafeArea(.all)
-            
+                    .aspectRatio(contentMode: .fill)
+                    .ignoresSafeArea()
             }
             .toolbar {
                 
                 // Left Button (Back to ContentView)
                 ToolbarItem(placement: .topBarLeading) {
                     Button {
-                        
                         dismiss()
                     } label: {
-                        customToolbarButton(systemName: "chevron.backward")
+                        // 🛠️ USAGE: You can now set the size directly here.
+                        // Example: customToolbarButton(systemName: "chevron.backward", size: 28, weight: .heavy)
+                        customToolbarButton(systemName: "chevron.backward", size: 28)
                     }
                 }
                 
                 // Center Title (Principal)
                 ToolbarItem(placement: .principal) {
                     Image("cardTitle")
-                        .padding(.top, 100)
+                        .padding(.top, 20)
                 }
                 
-//                // Right Button (Trailing Edge) - Undo Action
-//                ToolbarItem(placement: .topBarTrailing) {
-//                    Button(action: cardPageUndoAction) {
-//                        customToolbarButton(systemName: "arrow.uturn.backward")
-//                    }
-//                }
             }
-           
+            
             .toolbarBackground(.hidden, for: .navigationBar)
         }
     }
 }
 
 #Preview {
-   
+    
     Color.white
         .fullScreenCover(isPresented: .constant(true)) {
             CardPage()
