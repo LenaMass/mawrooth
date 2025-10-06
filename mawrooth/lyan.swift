@@ -1,19 +1,15 @@
-//
-//  Untitled.swift
-//  mawrooth
-//
-//  Created by Lyan on 13/04/1447 AH.
-//
 import SwiftUI
+import UIKit
 import AudioToolbox
 
-// MARK: - Haptics + Arabic Font
+// MARK: - Haptics
 enum Haptics {
     static func success() { UINotificationFeedbackGenerator().notificationOccurred(.success) }
     static func warning() { UINotificationFeedbackGenerator().notificationOccurred(.warning) }
     static func light()   { UIImpactFeedbackGenerator(style: .light).impactOccurred() }
 }
 
+// MARK: - Fonts
 extension Font {
     static func arabicHeadline(_ size: CGFloat, weight: Weight = .bold) -> Font {
         let preferredArabicNames = ["SF Arabic", "Cairo", "GE SS Two", "DINNextLTArabic"]
@@ -25,62 +21,134 @@ extension Font {
     }
 }
 
+// MARK: - Colors
 extension Color {
     static let burntBrown = Color(red: 92/255, green: 58/255, blue: 46/255)
-}
 
-// =================== ROOT ===================
-struct gamePage: View {
-    var body: some View {
-        NavigationStack { StartScreen() }
-    }
-}
+    /// Initialize from hex like "#FF4500" or "FF4500"
+    extension Color {
+        /// Use like: Color(hexString: "8D87C0")
+        init(hexString: String) {
+            let hex = hexString.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
+            var int: UInt64 = 0
+            Scanner(string: hex).scanHexInt64(&int)
 
-// =================== START SCREEN ===================
-struct StartScreen: View {
-    var body: some View {
-        ZStack {
-            if UIImage(named: "bgFirst") != nil {
-                Image("bgFirst").resizable().scaledToFill().ignoresSafeArea()
-            } else {
-                Color(UIColor.systemBackground).ignoresSafeArea()
+            let a, r, g, b: UInt64
+            switch hex.count {
+            case 3: (a, r, g, b) = (255, (int >> 8) * 17, (int >> 4 & 0xF) * 17, (int & 0xF) * 17)
+            case 6: (a, r, g, b) = (255, int >> 16, int >> 8 & 0xFF, int & 0xFF)
+            case 8: (r, g, b, a) = (int >> 24, int >> 16 & 0xFF, int >> 8 & 0xFF, int & 0xFF)
+            default: (a, r, g, b) = (255, 0, 0, 0)
             }
-            LinearGradient(colors: [.clear, .black.opacity(0.12)],
-                           startPoint: .top, endPoint: .bottom)
-            .ignoresSafeArea()
 
-            VStack(spacing: 24) {
-                Spacer(minLength: 40)
-
-                if UIImage(named: "logoMorouth") != nil {
-                    Image("logoMorouth").resizable().scaledToFit().frame(width: 180)
-                } else {
-                    Text("مورّوث").font(.arabicHeadline(40))
-                }
-
-                Spacer()
-
-                NavigationLink {
-                    GameScreen()
-                } label: {
-                    Text("ابدأ")
-                        .font(.arabicHeadline(22))
-                        .padding(.vertical, 14)
-                        .padding(.horizontal, 48)
-                        .background(Capsule().fill(Color.orange))
-                        .foregroundStyle(.white)
-                        .shadow(radius: 8, y: 4)
-                }
-
-                Spacer(minLength: 24)
-            }
-            .padding()
+            self.init(.sRGB,
+                      red:   Double(r) / 255,
+                      green: Double(g) / 255,
+                      blue:  Double(b) / 255,
+                      opacity: Double(a) / 255)
         }
-        .navigationBarHidden(true)
+    }
+
+// MARK: - Home (صفحة البداية)
+struct ContentView: View {
+    // سكيل الأزرار
+    @State private var startButtonScale: CGFloat = 1.0
+    @State private var iconButtonScale: CGFloat = 1.0
+
+    // تنقل/عروض
+    @State private var goToGame = false
+    @State private var showingCardPage = false
+
+    // ألوان حسب تصميمك
+    let circleColor = Color("8D87C0")
+    let iconColor   = Color("F1B438")
+
+    private func animateButton(scale: inout CGFloat, isPressed: Bool) {
+        withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+            scale = isPressed ? 0.95 : 1.0
+        }
+    }
+
+    var body: some View {
+        NavigationStack {
+            ZStack {
+                // الخلفية
+                Image("Ima")
+                    .resizable()
+                    .scaledToFill()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .ignoresSafeArea()
+
+                ZStack {
+                    Image("Z")
+                        .padding(.top, -359)
+                        .padding(.leading, -68)
+                    Spacer()
+                }
+                .ignoresSafeArea()
+
+                VStack {
+                    Image("TXT")
+                        .padding(.top, 50)
+
+                    Spacer()
+
+                    // زر ابدأ → يفتح GameScreen
+                    Button {
+                        animateButton(scale: &startButtonScale, isPressed: true)
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                            animateButton(scale: &startButtonScale, isPressed: false)
+                            goToGame = true
+                        }
+                    } label: {
+                        Text("ابدأ")
+                            .font(.largeTitle.weight(.heavy))
+                            .foregroundStyle(.white)
+                            .frame(width: 200, height: 72)
+                            .background(customOrange)
+                            .cornerRadius(55)
+                            .shadow(color: .black.opacity(0.4), radius: 6, x: 0, y: 4)
+                    }
+                    .scaleEffect(startButtonScale)
+
+                    Spacer().frame(height: 20)
+
+                    // زر الأيقونة → يفتح CardPage كفل سكرين
+                    Button {
+                        animateButton(scale: &iconButtonScale, isPressed: true)
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                            animateButton(scale: &iconButtonScale, isPressed: false)
+                            showingCardPage = true
+                        }
+                    } label: {
+                        Image(systemName: "book.fill")
+                            .font(.title)
+                            .foregroundStyle(.white)
+                            .frame(width: 200, height: 72)
+                            .background(customPurple)
+                            .cornerRadius(55)
+                            .shadow(color: .black.opacity(0.4), radius: 6, x: 0, y: 4)
+                    }
+                    .scaleEffect(iconButtonScale)
+
+                    Spacer()
+                }
+                .padding(.bottom, -200)
+
+                // NavigationLink المخفي للتنقل للعبة
+                NavigationLink("", isActive: $goToGame) { GameScreen() }
+                    .opacity(0)
+            }
+            .fullScreenCover(isPresented: $showingCardPage) {
+                CardPage()
+            }
+            .navigationTitle("الصفحة الرئيسية")
+            .navigationBarTitleDisplayMode(.inline)
+        }
     }
 }
 
-// =================== GAME SCREEN ===================
+// MARK: - Game Screen
 struct GameScreen: View {
     @StateObject private var vm = GameVM()
     @Environment(\.dismiss) private var dismiss
@@ -95,22 +163,22 @@ struct GameScreen: View {
                     .overlay(
                         LinearGradient(
                             colors: [Color.black.opacity(0.1), Color.purple.opacity(0.1)],
-                            startPoint: .top,
-                            endPoint: .bottom
+                            startPoint: .top, endPoint: .bottom
                         )
                     )
             } else {
                 Color(UIColor.systemGroupedBackground).ignoresSafeArea()
             }
-            
+
             VStack(spacing: 12) {
-                // Top bar
+                // شريط علوي
                 HStack(spacing: 12) {
                     Button {
                         vm.stopTimer()
                         dismiss()
                     } label: {
-                        Image(systemName: "chevron.backward").font(.title3.weight(.semibold))
+                        Image(systemName: "chevron.backward")
+                            .font(.title3.weight(.semibold))
                     }
 
                     Spacer()
@@ -138,7 +206,7 @@ struct GameScreen: View {
                         .offset(y: -10)
                 )
 
-                // GRID 3x3 (ثمانية لعب + فخ واحد)
+                // الشبكة 3x3 (8 بطاقات + فخ)
                 LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: 3), spacing: 12) {
                     ForEach(vm.cards) { card in
                         CardView(card: card)
@@ -150,7 +218,7 @@ struct GameScreen: View {
                 .padding(.horizontal)
                 .padding(.bottom, 6)
 
-                // Footer
+                // فوتر
                 HStack {
                     Text("مُطابَقات: \(vm.matchedPairs)/\(vm.totalPairs)")
                     Spacer()
@@ -161,21 +229,18 @@ struct GameScreen: View {
                 .padding(.bottom, 10)
             }
         }
-        .navigationBarBackButtonHidden(true)
         .onDisappear { vm.stopTimer() }
         .alert(vm.endTitle, isPresented: $vm.showEnd) {
-            Button("موافق") {
-                // إعادة التشغيل عند ضغط موافق
-                DispatchQueue.main.async { vm.restart() }
-            }
+            Button("موافق") { DispatchQueue.main.async { vm.restart() } }
         } message: { Text(vm.endMessage) }
+        .navigationBarBackButtonHidden(true)
     }
 }
 
-// =================== MODEL / VIEWMODEL ===================
+// MARK: - Model / ViewModel
 struct GCard: Identifiable, Equatable {
     let id = UUID()
-    let pairId: Int?          // nil = ليس له زوج (فخ/جوكر)
+    let pairId: Int?          // nil = فخ/جوكر
     let imageName: String
     var isFaceUp = false
     var isMatched = false
@@ -285,11 +350,9 @@ final class GameVM: ObservableObject {
         Haptics.warning()
         lockBoard = true
         stopTimer()
-
         endTitle = "وقعتِ بالفخ!"
         endMessage = "خسرت يبوي😜"
         showEnd = true
-        // 🚫 لا إعادة تلقائية — يعيد فقط لما المستخدم يضغط "موافق"
     }
 
     private func finish(won: Bool) {
@@ -307,13 +370,13 @@ final class GameVM: ObservableObject {
     }
 }
 
-// =================== CARD VIEW ===================
+// MARK: - Card View
 struct CardView: View {
     let card: GCard
 
     var body: some View {
         ZStack {
-            // ------- BACK (ظهر الكرت) -------
+            // BACK
             ZStack {
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
                     .fill(.white)
@@ -332,11 +395,10 @@ struct CardView: View {
                     Image(systemName: "square.grid.3x3.fill").font(.title)
                 }
             }
-            // ظهر الكرت ندوّره 180 لما يكون FaceUp عشان يختفي بالشكل الصحيح
             .rotation3DEffect(.degrees(card.isFaceUp ? 180 : 0), axis: (x: 0, y: 1, z: 0))
             .opacity(card.isFaceUp ? 0 : 1)
 
-            // ------- FRONT (وجه الكرت) -------
+            // FRONT
             ZStack {
                 if card.isTrap {
                     RoundedRectangle(cornerRadius: 14, style: .continuous)
@@ -346,16 +408,9 @@ struct CardView: View {
                                 .stroke(Color.burntBrown.opacity(0.9), lineWidth: 2)
                         )
                     VStack(spacing: 8) {
-                        if let trapImg = UIImage(named: card.imageName) {
-                            Image(uiImage: trapImg)
-                                .resizable()
-                                .scaledToFit()
-                                .frame(height: 42)
-                        } else {
-                            Image(systemName: "exclamationmark.triangle.fill")
-                                .font(.system(size: 38, weight: .bold))
-                                .foregroundStyle(Color.burntBrown)
-                        }
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .font(.system(size: 38, weight: .bold))
+                            .foregroundStyle(Color.burntBrown)
                         Text("حكمك طاح وقيمك راح")
                             .font(.arabicHeadline(16))
                             .foregroundStyle(Color.burntBrown)
@@ -377,13 +432,52 @@ struct CardView: View {
                     }
                 }
             }
-            // وجه الكرت يكون مستقيم لما ينفتح، ومقلوب -180 لما يكون مقفول
             .rotation3DEffect(.degrees(card.isFaceUp ? 0 : -180), axis: (x: 0, y: 1, z: 0))
             .opacity(card.isFaceUp ? 1 : 0)
         }
-        // 👇 شيل دوران الحاوية العامة (هو اللي كان يقلب النص)
-        // .rotation3DEffect(... )  ← احذفيه من الحاوية
         .animation(.easeInOut(duration: 0.3), value: card.isFaceUp)
     }
 }
 
+// MARK: - CardPage (صفحة المعلومات الكاملة)
+struct CardPage: View {
+    @Environment(\.dismiss) var dismiss
+
+    let circleColor = Color(hex: "8D87C0")
+    let iconColor   = Color(hex: "F1B438")
+
+    private func customToolbarButton(systemName: String) -> some View {
+        ZStack {
+            Circle().fill(circleColor).frame(width: 40, height: 40)
+            Image(systemName: systemName)
+                .font(.system(size: 20, weight: .bold))
+                .foregroundColor(iconColor)
+        }
+    }
+
+    var body: some View {
+        NavigationStack {
+            ZStack {
+                Image("BG")
+                    .resizable()
+                    .ignoresSafeArea()
+            }
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button { dismiss() } label: {
+                        customToolbarButton(systemName: "chevron.backward")
+                    }
+                }
+                ToolbarItem(placement: .principal) {
+                    Image("cardTitle").padding(.top, 100)
+                }
+            }
+            .toolbarBackground(.hidden, for: .navigationBar)
+        }
+    }
+}
+
+// MARK: - Preview
+#Preview {
+    ContentView()
+}
