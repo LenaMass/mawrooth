@@ -1,18 +1,20 @@
 import SwiftUI
 
-// Assume the Haptics, Font extension, Color extension, GCard, GameVM, GameScreen, and CardPage structs
-// from the previous script are available in the same file or imported module.
+// Assume the Haptics, Font extension, Color extension, GCard, GameVM, GameScreen,
+// CardPage, and MawroothDataStore structs are available or imported.
 
 struct ContentView: View {
     
-    // Each button has its own scale state
+    // 🔑 FIX 1: Make ContentView the source of truth for the data store
+    // This store will be shared across the entire app
+    @StateObject private var mawroothStore = MawroothDataStore()
+    
     @State private var startButtonScale: CGFloat = 1.0
     @State private var iconButtonScale: CGFloat = 1.0
     
     // 🎯 KEY: State to control the modal presentation of CardPage
     @State private var showingCardPage = false
     
-    // Define the custom colors based on the image's hex values
     let customOrange = Color(red: 238/255, green: 100/255, blue: 40/255)
     let customPurple = Color(red: 141/255, green: 135/255, blue: 192/255)
     
@@ -23,7 +25,6 @@ struct ContentView: View {
     }
 
     var body: some View {
-        // 🚨 IMPORTANT: Wrap in NavigationStack to allow NavigationLink to work
         NavigationStack {
             ZStack {
                 // Background
@@ -50,16 +51,14 @@ struct ContentView: View {
                     
                     Spacer()
 
-                    // "ابدأ" Button (Start Button) - Now a NavigationLink
-                    // We keep the Button style inside the NavigationLink
+                    // "ابدأ" Button (Start Button) - NavigationLink
                     NavigationLink {
                         // 🎯 ACTION: Navigate to the GameScreen
                         GameScreen()
+                            // 🔑 FIX 2: Inject the store into the NavigationLink destination
+                            .environmentObject(mawroothStore)
                     } label: {
                         Text("ابدأ")
-                        // ⚠️ Note: I'm replacing the custom font with a standard one
-                            // as "TheYearofHandicrafts-Bold" is likely missing.
-                            // If you have the font file, ensure it's imported correctly.
                             .font(.system(size: 30, weight: .heavy))
                             .fontWeight(.heavy)
                             .foregroundColor(.white)
@@ -67,9 +66,7 @@ struct ContentView: View {
                             .background(customOrange)
                             .cornerRadius(55)
                             .shadow(color: Color.black.opacity(0.4), radius: 6, x: 5, y: 4)
-                            // Apply scale effect for visual feedback
                             .scaleEffect(startButtonScale)
-                            // Use a button style to capture press and animate the scale effect
                             .simultaneousGesture(
                                 DragGesture(minimumDistance: 0)
                                     .onChanged { _ in
@@ -83,7 +80,7 @@ struct ContentView: View {
                     
                     Spacer().frame(height: 10)
                     
-                    // Icon Button (Stays a regular Button presenting CardPage modally)
+                    // Icon Button (Presents CardPage modally)
                     Button(action: {
                         animateButton(scale: &iconButtonScale, isPressed: true)
                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
@@ -118,10 +115,15 @@ struct ContentView: View {
         // 🎯 KEY: This presents CardPage when showingCardPage is true.
         .fullScreenCover(isPresented: $showingCardPage) {
             CardPage()
+                // 🔑 FIX 3: Inject the store into the fullScreenCover destination
+                .environmentObject(mawroothStore)
         }
     }
 }
 
 #Preview {
     ContentView()
+        // If ContentView is your App's root, adding the store here
+        // prevents a crash in the Preview environment.
+        .environmentObject(MawroothDataStore())
 }

@@ -7,11 +7,15 @@
 
 import SwiftUI
 
+// This file must be the root of your application
 @main
-struct mawroothApp: App {
+struct MawroothApp: App {
+    // 1. Create a SINGLE instance of the shared data manager
+
     var body: some Scene {
         WindowGroup {
             ContentView()
+            
         }
     }
 }

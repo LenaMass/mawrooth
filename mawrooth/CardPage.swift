@@ -1,108 +1,178 @@
-//
-//  ContentView.swift
 import SwiftUI
 
-// MARK: - Color Extension
-extension Color {
-    /// Initializes a Color from a hex string (e.g., "#FF4500" or "FF4500").
-    init(hex: String) {
-        let hex = hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
-        var int: UInt64 = 0
-        Scanner(string: hex).scanHexInt64(&int)
-        
-        let a, r, g, b: UInt64
-        switch hex.count {
-        case 3:
-            (a, r, g, b) = (255, (int >> 8) * 17, (int >> 4 & 0xF) * 17, (int & 0xF) * 17)
-        case 6:
-            (a, r, g, b) = (255, int >> 16, int >> 8 & 0xFF, int & 0xFF)
-        case 8:
-            (r, g, b, a) = (int >> 24, int >> 16 & 0xFF, int >> 8 & 0xFF, int & 0xFF)
-        default:
-            (a, r, g, b) = (255, 0, 0, 0)
-        }
-        
-        self.init(
-            .sRGB,
-            red: Double(r) / 255,
-            green: Double(g) / 255,
-            blue: Double(b) / 255,
-            opacity: Double(a) / 255
-        )
-    }
-}
-
-// MARK: - Utility Function
+// MARK: - Utility Functions
 func cardPageUndoAction() {
     print("Undo Action Button Tapped!")
+}
+
+// NOTE: Color and Font extensions are removed as requested (assuming they exist in other files).
+// NOTE: MawroothItem and MawroothDataStore are assumed to be in a separate file (e.g., MawroothModels.swift)
+// and are not defined here to avoid "Invalid redeclaration" errors.
+
+// MARK: - MawroothCardView (Color changed, stroke removed)
+struct MawroothCardView: View {
+    let item: MawroothItem
+    
+    // Assuming Color(hex: ...) and Font.arabicHeadline(...) are available via other files
+    let purpleOverlayColor = Color(hex: "8D87C0")
+    let iconColor = Color(hex: "F1B438")
+    // 🔑 Changed message text color to the yellow-orange icon color
+    let messageTextColor = Color(hex: "F1B438")
+    
+    var body: some View {
+        ZStack(alignment: .topLeading) {
+            // 1. Base Image
+            Image("BGmessage")
+                .resizable()
+                .scaledToFill()
+                .frame(width: 170, height: 170)
+                .clipped()
+            
+            // 2. Purple Overlay on top of the image
+            purpleOverlayColor.opacity(0.7)
+                .frame(width: 170, height: 170)
+                .cornerRadius(15)
+
+            // Text Content
+            VStack(alignment: .trailing, spacing: 5) {
+                // Top Flag Icon
+                HStack {
+                    Image("flag_icon_green")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 30, height: 20)
+                        .padding(.leading, 12)
+                        .padding(.top, 12)
+                    Spacer()
+                }
+
+                // Message Text (Bold and F1B438 Color)
+                Text(item.message)
+                    // 🔑 Applied bold font and Arabic headline style
+                    .font(.arabicHeadline(17, weight: .bold))
+                    // 🔑 Applied the new yellow-orange color
+                    .foregroundColor(messageTextColor)
+                    
+                    .multilineTextAlignment(.trailing)
+                    .lineLimit(5)
+                    .minimumScaleFactor(0.8)
+                    .padding(.horizontal, 12)
+                
+                Spacer() // Pushes content up
+                
+            }
+            .frame(width: 170, height: 170)
+        }
+        .frame(width: 170, height: 170)
+        .cornerRadius(15)
+        .shadow(color: .black.opacity(0.3), radius: 5, x: 0, y: 5)
+    }
 }
 
 // MARK: - CardPage View
 struct CardPage: View {
     
-    // 🎯 KEY: This environment variable dismisses the view presented modally.
     @Environment(\.dismiss) var dismiss
+    @EnvironmentObject var mawroothStore: MawroothDataStore
     
-    let circleColor = Color(hex: "8D87C0")
-    let iconColor = Color(hex: "F1B438")
-    private let titleVerticalOffset: CGFloat = 16
+    // Assuming Color(hex: ...) is available via other files
+    let purpleColor = Color(hex: "8D87C0")
+    let yellowIconColor = Color(hex: "F1B438")
     
-    // 💡 FIX: Modified customToolbarButton to accept an icon size and weight
-    private func customToolbarButton(systemName: String, size: CGFloat = 20, weight: Font.Weight = .bold) -> some View {
-        ZStack {
-            // Uncomment this if you want the purple circle background back, otherwise it's just the icon
-            /*
-            Circle()
-                .fill(circleColor)
-                .frame(width: 40, height: 40)
-            */
-            
-            Image(systemName: systemName)
-                .font(.system(size: size, weight: weight)) // <--- Controls the size
-                .foregroundColor(circleColor) // Used circleColor for the tint as in your setup
-        }
+    // Grid items for a two-column layout
+    let columns = [
+        GridItem(.adaptive(minimum: 150), spacing: 15)
+    ]
+
+    private func customToolbarButton(systemName: String, color: Color, size: CGFloat = 28, weight: Font.Weight = .semibold) -> some View {
+        Image(systemName: systemName)
+            .font(.system(size: size, weight: weight))
+            .foregroundColor(color)
     }
 
     var body: some View {
         NavigationStack {
             
             ZStack {
-                // 1. BACKGROUND LAYER
+                // 1. BACKGROUND LAYER (for the entire page)
                 Image("BG")
                     .resizable()
                     .aspectRatio(contentMode: .fill)
                     .ignoresSafeArea()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                
+                // 2. SAVED MAWROOTH GRID LIST
+                ScrollView {
+                    VStack(spacing: 20) {
+                        // ADJUSTED SPACER HEIGHT: Pushes content further down
+                        Spacer().frame(height: 150)
+                        
+                        if mawroothStore.savedItems.isEmpty {
+                            Text("لا يوجد موروث محفوظ حتى الآن")
+                                .font(.arabicHeadline(20, weight: .bold))
+                                .multilineTextAlignment(.center)
+                                .foregroundColor(.gray)
+                                .padding(.top, 100)
+                                .frame(maxWidth: .infinity)
+                        } else {
+                            // Display items in a LazyVGrid
+                            LazyVGrid(columns: columns, spacing: 15) {
+                                ForEach(mawroothStore.savedItems) { item in
+                                    MawroothCardView(item: item)
+                                }
+                            }
+                            .padding(.horizontal, 20)
+                        }
+                    }
+                    .padding(.top, 20)
+                    .padding(.bottom, 40)
+                    .frame(maxWidth: .infinity, alignment: .center)
+                }
+                .scrollIndicators(.hidden)
             }
             .toolbar {
-                
-                // Left Button (Back to ContentView)
+                // Left Button (Back)
                 ToolbarItem(placement: .topBarLeading) {
                     Button {
                         dismiss()
                     } label: {
-                        // 🛠️ USAGE: You can now set the size directly here.
-                        // Example: customToolbarButton(systemName: "chevron.backward", size: 28, weight: .heavy)
-                        customToolbarButton(systemName: "chevron.backward", size: 28)
+                        customToolbarButton(systemName: "chevron.backward", color: purpleColor, size: 24)
+                            .offset(y: 10)
+                            .padding(.leading, 0)
                     }
                 }
                 
-                // Center Title (Principal)
+                // Center Title - IMAGE
                 ToolbarItem(placement: .principal) {
                     Image("cardTitle")
-                        .padding(.top, 20)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(height: 40)
+                        .offset(y: 35)
                 }
-                
             }
-            
             .toolbarBackground(.hidden, for: .navigationBar)
         }
     }
 }
 
+// MARK: - Preview Provider
 #Preview {
+    // Injecting sample data for the preview
+    let previewStore = MawroothDataStore()
     
-    Color.white
+    previewStore.savedItems = [
+        MawroothItem(message: "السعودية هي أكبر دولة في العالم من دون أنهار.", date: Date().addingTimeInterval(-86400), timeTaken: "الزمن: 24 ثانية"),
+        MawroothItem(message: "تم ادراج القهوه السعوديه في عام 2024 ضمن قائمة التراث الإنساني غير المادي في اليونسكو، لتصبح إحدى علامات الهوية الوطنية المميزة للمملكة.", date: Date().addingTimeInterval(-3600), timeTaken: "الزمن: 45 ثانية"),
+        MawroothItem(message: "يُستخدم زيت الورد الطائفي في صناعة عطور عالمية من قبل علامات تجارية مرموقة مثل ديور ، جيرلان، نينا ريتشي", date: Date(), timeTaken: "الزمن: 12 ثانية"),
+        MawroothItem(message: "يقام مهرجان الملك عبد العزيز للإبل سنوياً على مقربة من الرياض، ويعتبر المهرجان الأكبر من نوعه على مستوى العالم.", date: Date().addingTimeInterval(-100000), timeTaken: "الزمن: 30 ثانية"),
+        MawroothItem(message: "يعدّ جبل السودة الواقع في جنوب المملكة أحد أكثر الجبال إرتفاعاً في شبه الجزيرة العربية",
+                     date: Date().addingTimeInterval(-200000), timeTaken: "الزمن: 55 ثانية")
+    ]
+    
+    return Color.white
         .fullScreenCover(isPresented: .constant(true)) {
             CardPage()
+                .environmentObject(previewStore)
         }
 }
