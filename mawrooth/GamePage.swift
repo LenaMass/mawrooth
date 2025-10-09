@@ -371,7 +371,7 @@ struct GameScreen: View {
         // LOSS POP-UP
         .fullScreenCover(isPresented: $vm.showLossPopUp) {
             LossPopUpMessageView(
-                popUpTitle: "العوض بالجايات!",
+                popUpTitle: "خلص الوقت، العوض بالجايات",
                 titleColor: .red,
                 titleFontSize: 30,
                 displayMessage: "",
