@@ -1,8 +1,10 @@
 import SwiftUI
 import AudioToolbox
 
-// NOTE: MawroothItem and MawroothDataStore MUST be defined in a separate file (e.g., MawroothModels.swift)
-// and have been REMOVED from this file to fix the "Invalid redeclaration" errors.
+// NOTE: MawroothItem and MawroothDataStore definitions have been removed
+// from this file to eliminate redefinition errors, as they are now expected
+// to be provided by your external MawroothModels script.
+// The file now assumes these types are available in the scope.
 
 // MARK: - 1. Haptics + Arabic Font + Colors (Keep these utilities)
 enum Haptics {
@@ -14,10 +16,11 @@ enum Haptics {
 extension Font {
     static func arabicHeadline(_ size: CGFloat, weight: Weight = .bold) -> Font {
         let preferredArabicNames = ["SF Arabic", "Cairo", "GE SS Two", "DINNextLTArabic"]
+        // Attempt to use a preferred Arabic font, fallback to system rounded
         if let name = preferredArabicNames.first(where: { UIFont(name: $0, size: size) != nil }) {
             return .custom(name, size: size).weight(weight)
         } else {
-            return .system(size: size, weight: weight, design: .rounded)
+            return .system(size: size, weight: .bold, design: .rounded)
         }
     }
 }
@@ -77,7 +80,7 @@ struct PopUpMessageView: View {
     let popUpTitle: String
     let titleColor: Color
     let titleFontSize: CGFloat
-    let displayMessage: String
+    let displayMessage: String // Now dynamic from GameVM
     let messageColor: Color
     let messageFontSize: CGFloat
     
@@ -130,7 +133,7 @@ struct PopUpMessageView: View {
                                     .foregroundColor(titleColor)
                                     .padding(.top, 10)
                                     
-                                Text(displayMessage)
+                                Text(displayMessage) // Dynamic content
                                     .multilineTextAlignment(.center)
                                     .foregroundColor(messageColor)
                                     .font(.system(size: messageFontSize))
@@ -247,7 +250,7 @@ struct LossPopUpMessageView: View {
 // =================== ROOT ===================
 struct gamePage: View {
     // 🔑 Inject the store since it will be used across screens
-    // The MawroothDataStore definition is assumed to be in a separate file.
+    // MawroothDataStore is now assumed to be defined externally.
     @StateObject private var mawroothStore = MawroothDataStore()
 
     var body: some View {
@@ -329,22 +332,26 @@ struct GameScreen: View {
         .navigationBarBackButtonHidden(true)
         .onDisappear { vm.stopTimer() }
         
-        // WIN POP-UP (Updated to use mawroothStore.save)
+        // WIN POP-UP (Updated to use vm.currentWinMessage)
         .fullScreenCover(isPresented: $vm.showWinPopUp) {
             PopUpMessageView(
                 popUpTitle: "إنجاز عظيم!",
                 titleColor: Color.yellow,
                 titleFontSize: 24,
-                displayMessage: "تم ادراج القهوه السعوديه في عام 2024 ضمن قائمة التراث الإنساني غير المادي في اليونسكو، لتصبح إحدى علامات الهوية الوطنية المميزة للمملك.",
+                // 🔑 DYNAMIC MESSAGE: Uses the random fact selected in GameVM
+                displayMessage: vm.currentWinMessage,
                 messageColor: .white,
                 messageFontSize: 16,
                 saveAction: {
-                    // Calculate time spent and save
+                    // Calculate time spent
                     let timeSpent = 60 - vm.timeRemaining
                     let timeRecord = "الزمن: \(timeSpent) ثانية"
-                    let messageToSave = "إنجاز رائع! تم حفظ الإنجاز في \(timeSpent) ثانية."
                     
-                    // 🔑 Perform the save operation using the injected store
+                    // 🔑 SAVE DYNAMIC MESSAGE: Uses the displayed message for saving
+                    let messageToSave = vm.currentWinMessage
+                    
+                    // Perform the save operation using the injected store
+                    // This uses the externally defined MawroothDataStore.save function
                     mawroothStore.save(message: messageToSave, timeTaken: timeRecord)
 
                     vm.showWinPopUp = false
@@ -372,7 +379,7 @@ struct GameScreen: View {
     }
 }
 
-// =================== MODEL / VIEWMODEL ===================
+// =================== MODEL / VIEWMODEL (Updated with Random Messages) ===================
 struct GCard: Identifiable, Equatable {
     let id = UUID()
     let pairId: Int?// nil = ليس له زوج (فخ/جوكر)
@@ -391,6 +398,9 @@ final class GameVM: ObservableObject {
     @Published var showLossPopUp = false
     @Published var endTitle = ""
     @Published var endMessage = ""
+    
+    // 🔑 NEW: Current fun fact message for the win pop-up
+    @Published var currentWinMessage: String = ""
 
     private var timer: Timer?
 
@@ -399,6 +409,26 @@ final class GameVM: ObservableObject {
     ]
     
     private let trapPenaltySeconds = 10
+    
+    // 🔑 NEW: List of Saudi Heritage Fun Facts (Mawrooth)
+    private let saudiHeritageFacts: [String] = [
+        
+        "السعودية هي أكبر دولة في العالم من دون أنهار.",
+        "يوجد في المملكة حوالي 60 لهجة محكيّة رئيسية ويتفرع منها لهجات أخرى، وتختلف بحسَب المنطقة أو القبيلة",
+        "يُستخدم زيت الورد الطائفي في صناعة عطور عالمية من قبل علامات تجارية مرموقة مثل ديور ، جيرلان، نينا ريتشي",
+        "تم ادراج القهوه السعوديه في عام  2024 ضمن قائمة التراث الإنساني غير المادي في اليونسكو، لتصبح إحدى علامات الهوية الوطنية المميزة للمملكة",
+        "تمتد مساحة مطار الملك فهد الدولي  في الدمام حوالي 776 كيلومتر مربع، مما يجعله الأكبر من حيث المساحة في العالم",
+        "يعدّ جبل السودة الواقع في جنوب المملكة أحد أكثر الجبال إرتفاعاً في شبه الجزيرة العربية",
+        "يقام مهرجان الملك عبد العزيز للإبل سنوياً على مقربة من الرياض، ويعتبر المهرجان الأكبر من نوعه على مستوى العالم.",
+
+    ]
+    
+    // 🔑 NEW: Function to select a random, new fact
+    private func selectRandomWinMessage() {
+        if let randomFact = saudiHeritageFacts.randomElement() {
+            self.currentWinMessage = randomFact
+        }
+    }
 
     var totalPairs: Int { Set(cards.compactMap { $0.pairId }).count }
     var matchedPairs: Int {
@@ -502,7 +532,8 @@ final class GameVM: ObservableObject {
         lockBoard = true
         
         if won {
-            // WIN: Show custom win pop-up
+            // WIN: Select a random message before showing the pop-up
+            self.selectRandomWinMessage()
             self.showWinPopUp = true
             Haptics.success()
         } else {
