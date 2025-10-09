@@ -93,7 +93,9 @@ struct PopUpMessageView: View {
     
     var body: some View {
         ZStack {
-            Color.black.opacity(0.4).ignoresSafeArea()
+            // --- MODIFICATION 1: Removed the opaque background overlay here ---
+            // The .presentationBackground(.clear) modifier on the caller (GameScreen)
+            // will now allow the main app background to show through.
 
             VStack {
                 RoundedRectangle(cornerRadius: 30)
@@ -182,7 +184,9 @@ struct LossPopUpMessageView: View {
     
     var body: some View {
         ZStack {
-            Color.black.opacity(0.4).ignoresSafeArea()
+            // --- MODIFICATION 2: Removed the opaque background overlay here ---
+            // The .presentationBackground(.clear) modifier on the caller (GameScreen)
+            // will now allow the main app background to show through.
 
             VStack {
                 RoundedRectangle(cornerRadius: 30)
@@ -248,9 +252,10 @@ struct LossPopUpMessageView: View {
 
 
 // =================== ROOT ===================
+// NOTE: MawroothDataStore must be defined in your project for this to compile.
+// It is assumed to be defined externally.
 struct gamePage: View {
     // 🔑 Inject the store since it will be used across screens
-    // MawroothDataStore is now assumed to be defined externally.
     @StateObject private var mawroothStore = MawroothDataStore()
 
     var body: some View {
@@ -263,6 +268,7 @@ struct gamePage: View {
 }
 
 // =================== GAME SCREEN (Updated to use EnvironmentObject) ===================
+// NOTE: MawroothDataStore must be defined in your project for this to compile.
 struct GameScreen: View {
     @StateObject private var vm = GameVM()
     @Environment(\.dismiss) private var dismiss
@@ -332,7 +338,7 @@ struct GameScreen: View {
         .navigationBarBackButtonHidden(true)
         .onDisappear { vm.stopTimer() }
         
-        // WIN POP-UP (Updated to use vm.currentWinMessage)
+        // WIN POP-UP
         .fullScreenCover(isPresented: $vm.showWinPopUp) {
             PopUpMessageView(
                 popUpTitle: "إنجاز عظيم!",
@@ -358,6 +364,8 @@ struct GameScreen: View {
                     vm.restart()
                 }
             )
+            // --- MODIFICATION 3: Added presentationBackground(.clear) ---
+            .presentationBackground(.clear)
         }
         
         // LOSS POP-UP
@@ -375,6 +383,8 @@ struct GameScreen: View {
                     vm.restart()
                 }
             )
+            // --- MODIFICATION 4: Added presentationBackground(.clear) ---
+            .presentationBackground(.clear)
         }
     }
 }
@@ -416,8 +426,8 @@ final class GameVM: ObservableObject {
         "السعودية هي أكبر دولة في العالم من دون أنهار.",
         "يوجد في المملكة حوالي 60 لهجة محكيّة رئيسية ويتفرع منها لهجات أخرى، وتختلف بحسَب المنطقة أو القبيلة",
         "يُستخدم زيت الورد الطائفي في صناعة عطور عالمية من قبل علامات تجارية مرموقة مثل ديور ، جيرلان، نينا ريتشي",
-        "تم ادراج القهوه السعوديه في عام  2024 ضمن قائمة التراث الإنساني غير المادي في اليونسكو، لتصبح إحدى علامات الهوية الوطنية المميزة للمملكة",
-        "تمتد مساحة مطار الملك فهد الدولي  في الدمام حوالي 776 كيلومتر مربع، مما يجعله الأكبر من حيث المساحة في العالم",
+        "تم ادراج القهوه السعوديه في عام  2024 ضمن قائمة التراث الإنساني غير المادي في اليونسكو، لتصبح إحدى علامات الهوية الوطنية المميزة للمملكة",
+        "تمتد مساحة مطار الملك فهد الدولي  في الدمام حوالي 776 كيلومتر مربع، مما يجعله الأكبر من حيث المساحة في العالم",
         "يعدّ جبل السودة الواقع في جنوب المملكة أحد أكثر الجبال إرتفاعاً في شبه الجزيرة العربية",
         "يقام مهرجان الملك عبد العزيز للإبل سنوياً على مقربة من الرياض، ويعتبر المهرجان الأكبر من نوعه على مستوى العالم.",
 

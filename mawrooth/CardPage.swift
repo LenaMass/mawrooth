@@ -37,7 +37,7 @@ struct MawroothCardView: View {
             VStack(alignment: .trailing, spacing: 5) {
                 // Top Flag Icon
                 HStack {
-                    Image("flag_icon_green")
+                    Image("FlagG")
                         .resizable()
                         .scaledToFit()
                         .frame(width: 30, height: 20)
