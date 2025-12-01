@@ -74,8 +74,6 @@ struct RoundedCorner: Shape {
         return Path(path.cgPath)
     }
 }
-
-// MARK: - 3. PopUpMessageView (WINNER VERSION - Includes Save Button)
 struct PopUpMessageView: View {
     @Environment(\.dismiss) var dismiss
 
@@ -95,12 +93,13 @@ struct PopUpMessageView: View {
     let saveButtonColor = Color(hex: "F1B438")
     let textcolor = Color(hex: "EE6428")
     
+    // 🔐 NEW: gate + countdown for showing the X button
+    @State private var canClose = false
+    @State private var countdown = 5
+    private let countdownTimer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
+    
     var body: some View {
         ZStack {
-            // --- MODIFICATION 1: Removed the opaque background overlay here ---
-            // The .presentationBackground(.clear) modifier on the caller (GameScreen)
-            // will now allow the main app background to show through.
-
             VStack {
                 RoundedRectangle(cornerRadius: 30)
                     .fill(backgroundColor)
@@ -115,19 +114,37 @@ struct PopUpMessageView: View {
                                     .scaledToFill()
                                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                                     .clipped()
-                                    
-                                // Close Button (Dismisses the Pop-up)
-                                Button {
-                                    closeAction()
-                                    dismiss()
-                                } label: {
-                                    Image(systemName: "xmark.circle.fill")
-                                        .font(.system(size: 28))
-                                        .foregroundColor(saveButtonColor)
-                                        .background(Color.white.opacity(0.8))
-                                        .clipShape(Circle())
-                                        .padding(.top, 60)
-                                        .padding(.leading, 15)
+                                
+                                if canClose {
+                                    // ✅ Real X button (after countdown finishes)
+                                    Button {
+                                        closeAction()
+                                        dismiss()
+                                    } label: {
+                                        Image(systemName: "xmark.circle.fill")
+                                            .font(.system(size: 28))
+                                            .foregroundColor(saveButtonColor)
+                                            .background(Color.white.opacity(0.8))
+                                            .clipShape(Circle())
+                                            .padding(.top, 60)
+                                            .padding(.leading, 15)
+                                    }
+                                } else {
+                                    // ⏱ Countdown “pseudo button”
+                                    ZStack {
+                                        Image(systemName: "xmark.circle.fill")
+                                            .font(.system(size: 28))
+                                            .foregroundColor(saveButtonColor.opacity(0.25))
+                                            .background(Color.white.opacity(0.5))
+                                            .clipShape(Circle())
+                                        
+                                        // Big countdown number in the middle
+                                        Text("\(countdown)")
+                                            .font(.system(size: 16, weight: .bold))
+                                            .foregroundColor(.white)
+                                    }
+                                    .padding(.top, 60)
+                                    .padding(.leading, 15)
                                 }
                             }
                             .frame(height: 180)
@@ -139,7 +156,7 @@ struct PopUpMessageView: View {
                                     .font(.system(size: titleFontSize, weight: .bold))
                                     .foregroundColor(titleColor)
                                     .padding(.top, 10)
-                                    
+                                
                                 Text(displayMessage) // Dynamic content
                                     .multilineTextAlignment(.center)
                                     .foregroundColor(messageColor)
@@ -167,8 +184,25 @@ struct PopUpMessageView: View {
                     .shadow(radius: 20)
             }
         }
+        .onAppear {
+            // Reset timer state every time the popup appears
+            canClose = false
+            countdown = 5
+        }
+        // 🔁 Tick every second, only while not yet closable
+        .onReceive(countdownTimer) { _ in
+            guard !canClose else { return }
+            
+            if countdown > 0 {
+                countdown -= 1
+            }
+            if countdown == 0 {
+                canClose = true
+            }
+        }
     }
 }
+
 
 // MARK: - 4. LossPopUpMessageView (LOSER VERSION - NO Save Button)
 struct LossPopUpMessageView: View {
@@ -189,10 +223,6 @@ struct LossPopUpMessageView: View {
     
     var body: some View {
         ZStack {
-            // --- MODIFICATION 2: Removed the opaque background overlay here ---
-            // The .presentationBackground(.clear) modifier on the caller (GameScreen)
-            // will now allow the main app background to show through.
-
             VStack {
                 RoundedRectangle(cornerRadius: 30)
                     .fill(backgroundColor)
@@ -408,19 +438,19 @@ struct GameScreen: View {
         }
         
         // When win pop-up is about to show, pick a fact that is NOT already saved
-        .onChange(of: vm.showWinPopUp) { oldValue, newValue in
+        .onChange(of: vm.showWinPopUp) { _, newValue in
             if newValue {
                 vm.selectRandomWinMessage(excludingSavedFrom: mawroothStore)
             }
         }
-
-// WIN POP-UP
+        
+        // WIN POP-UP
         .fullScreenCover(isPresented: $vm.showWinPopUp) {
             PopUpMessageView(
                 popUpTitle: "إنجاز عظيم!",
                 titleColor: Color.yellow,
                 titleFontSize: 24,
-                // 🔑 DYNAMIC MESSAGE: Uses the random fact selected in GameVM
+                // Uses the random fact selected in GameVM
                 displayMessage: vm.currentWinMessage,
                 messageColor: .white,
                 messageFontSize: 16,
@@ -429,10 +459,10 @@ struct GameScreen: View {
                     let timeSpent = 60 - vm.timeRemaining
                     let timeRecord = "الزمن: \(timeSpent) ثانية"
                     
-                    // 🔑 SAVE DYNAMIC MESSAGE: Uses the displayed message for saving
+                    // SAVE currently displayed message
                     let messageToSave = vm.currentWinMessage
                     
-                    // Perform the save operation using the injected store
+                    // Save through MawroothDataStore
                     mawroothStore.save(message: messageToSave, timeTaken: timeRecord)
 
                     vm.showWinPopUp = false
@@ -460,7 +490,6 @@ struct GameScreen: View {
                     vm.restart()
                 }
             )
-            // --- MODIFICATION 4: Added presentationBackground(.clear) ---
             .presentationBackground(.clear)
         }
     }
@@ -469,7 +498,7 @@ struct GameScreen: View {
 // =================== MODEL / VIEWMODEL (Updated with Random Messages) ===================
 struct GCard: Identifiable, Equatable {
     let id = UUID()
-    let pairId: Int?// nil = ليس له زوج (فخ/جوكر)
+    let pairId: Int? // nil = ليس له زوج (فخ/جوكر)
     let imageName: String
     var isFaceUp = false
     var isMatched = false
@@ -486,7 +515,7 @@ final class GameVM: ObservableObject {
     @Published var endTitle = ""
     @Published var endMessage = ""
     
-    // 🔑 NEW: Current fun fact message for the win pop-up
+    // Current fun fact message for the win pop-up
     @Published var currentWinMessage: String = ""
 
     private var timer: Timer?
@@ -497,9 +526,8 @@ final class GameVM: ObservableObject {
     
     private let trapPenaltySeconds = 10
     
-    // 🔑 NEW: List of Saudi Heritage Fun Facts (Mawrooth)
+    // List of Saudi Heritage Fun Facts (Mawrooth)
     private let saudiHeritageFacts: [String] = [
-        
         "السعودية هي أكبر دولة في العالم من دون أنهار.",
         "يوجد في المملكة حوالي 60 لهجة محكيّة رئيسية ويتفرع منها لهجات أخرى، وتختلف بحسَب المنطقة أو القبيلة",
         "يُستخدم زيت الورد الطائفي في صناعة عطور عالمية من قبل علامات تجارية مرموقة مثل ديور ، جيرلان، نينا ريتشي",
@@ -507,17 +535,16 @@ final class GameVM: ObservableObject {
         "تمتد مساحة مطار الملك فهد الدولي  في الدمام حوالي 776 كيلومتر مربع، مما يجعله الأكبر من حيث المساحة في العالم",
         "يعدّ جبل السودة الواقع في جنوب المملكة أحد أكثر الجبال إرتفاعاً في شبه الجزيرة العربية",
         "يقام مهرجان الملك عبد العزيز للإبل سنوياً على مقربة من الرياض، ويعتبر المهرجان الأكبر من نوعه على مستوى العالم.",
-
     ]
     
-    // 🔑 Function to select a random, possibly filtered fact
+    // Select a random, possibly filtered fact
     func selectRandomWinMessage(excludingSavedFrom store: MawroothDataStore? = nil) {
-        // 1. Collect messages already saved (if a store is provided)
+        // 1. Messages already saved (if a store is provided)
         let savedMessages = Set(store?.savedItems.map { $0.message } ?? [])
-
-        // 2. Filter facts that are NOT saved yet
+        
+        // 2. Facts that are NOT saved yet
         let availableFacts = saudiHeritageFacts.filter { !savedMessages.contains($0) }
-
+        
         // 3. Prefer unsaved facts; if all are saved, fall back to any fact
         if let fact = (availableFacts.isEmpty ? saudiHeritageFacts.randomElement()
                                               : availableFacts.randomElement()) {
@@ -527,11 +554,14 @@ final class GameVM: ObservableObject {
 
     var totalPairs: Int { Set(cards.compactMap { $0.pairId }).count }
     var matchedPairs: Int {
-        let matchedByPair = Dictionary(grouping: cards.filter { $0.isMatched && !$0.isTrap }) { $0.pairId! }
+        let matchedByPair = Dictionary(
+            grouping: cards.filter { $0.isMatched && !$0.isTrap }
+        ) { $0.pairId! }
         return matchedByPair.values.reduce(0) { $0 + ($1.count == 2 ? 1 : 0) }
     }
     var timeString: String {
-        let m = timeRemaining / 60, s = timeRemaining % 60
+        let m = timeRemaining / 60
+        let s = timeRemaining % 60
         return String(format: "%d:%02d", m, s)
     }
 
@@ -562,7 +592,9 @@ final class GameVM: ObservableObject {
             guard let self else { return }
             if self.timeRemaining > 0 {
                 self.timeRemaining -= 1
-                if self.matchedPairs == self.totalPairs { self.finish(won: true) }
+                if self.matchedPairs == self.totalPairs {
+                    self.finish(won: true)
+                }
             } else {
                 self.lockBoard = true
                 self.finish(won: false)
@@ -570,7 +602,10 @@ final class GameVM: ObservableObject {
         }
     }
 
-    func stopTimer() { timer?.invalidate(); timer = nil }
+    func stopTimer() {
+        timer?.invalidate()
+        timer = nil
+    }
 
     func tap(_ card: GCard) {
         guard let i = cards.firstIndex(of: card),
@@ -593,7 +628,9 @@ final class GameVM: ObservableObject {
                     return
                 }
                 DispatchQueue.main.async {
-                    if let idx = self.cards.firstIndex(where: { $0.id == card.id }) { self.cards[idx].isFaceUp = false }
+                    if let idx = self.cards.firstIndex(where: { $0.id == card.id }) {
+                        self.cards[idx].isFaceUp = false
+                    }
                     self.lockBoard = false
                 }
             }
@@ -602,22 +639,31 @@ final class GameVM: ObservableObject {
 
         // normal matching flow...
         cards[i].isFaceUp = true
-        let up = cards.indices.filter { $0 < self.cards.count && self.cards[$0].isFaceUp && !self.cards[$0].isMatched && !self.cards[$0].isTrap }
-
+        let up = cards.indices.filter {
+            $0 < self.cards.count &&
+            self.cards[$0].isFaceUp &&
+            !self.cards[$0].isMatched &&
+            !self.cards[$0].isTrap
+        }
 
         if up.count == 2 {
             lockBoard = true
             let a = up[0], b = up[1]
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.75) {
                 if self.cards[a].pairId == self.cards[b].pairId {
-                    self.cards[a].isMatched = true; self.cards[b].isMatched = true
+                    self.cards[a].isMatched = true
+                    self.cards[b].isMatched = true
                     Haptics.success()
                 } else {
-                    self.cards[a].isFaceUp = false; self.cards[b].isFaceUp = false
-                    Haptics.light(); Haptics.warning()
+                    self.cards[a].isFaceUp = false
+                    self.cards[b].isFaceUp = false
+                    Haptics.light()
+                    Haptics.warning()
                 }
                 self.lockBoard = false
-                if self.matchedPairs == self.totalPairs { self.finish(won: true) }
+                if self.matchedPairs == self.totalPairs {
+                    self.finish(won: true)
+                }
             }
         }
     }
@@ -627,12 +673,12 @@ final class GameVM: ObservableObject {
         lockBoard = true
         
         if won {
-            // WIN: Select a message (later refined using saved items via GameScreen)
-            self.showWinPopUp = true
+            // Pick some message (will be refined in the view with saved items)
+            selectRandomWinMessage()
+            showWinPopUp = true
             Haptics.success()
         } else {
-            // LOSS: Show custom loss pop-up
-            self.showLossPopUp = true
+            showLossPopUp = true
             Haptics.warning()
         }
     }
@@ -660,10 +706,12 @@ struct CardView: View {
                         .scaledToFit()
                         .padding(10)
                 } else {
-                    Image(systemName: "square.grid.3x3.fill").font(.title)
+                    Image(systemName: "square.grid.3x3.fill")
+                        .font(.title)
                 }
             }
-            .rotation3DEffect(.degrees(card.isFaceUp ? 180 : 0), axis: (x: 0, y: 1, z: 0))
+            .rotation3DEffect(.degrees(card.isFaceUp ? 180 : 0),
+                              axis: (x: 0, y: 1, z: 0))
             .opacity(card.isFaceUp ? 0 : 1)
 
             // ------- FRONT (وجه الكرت) -------
@@ -678,25 +726,40 @@ struct CardView: View {
                     VStack(spacing: 8) {
                         if let trapImg = UIImage(named: card.imageName) {
                             Image(uiImage: trapImg)
-                                .resizable().scaledToFit().frame(height: 42)
+                                .resizable()
+                                .scaledToFit()
+                                .frame(height: 42)
                         } else {
-                            Image(systemName: "exclamationmark.triangle.fill").font(.system(size: 38, weight: .bold)).foregroundStyle(Color.burntBrown)
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .font(.system(size: 38, weight: .bold))
+                                .foregroundStyle(Color.burntBrown)
                         }
-                        Text("حكمك طاح وقيمك راح").font(.arabicHeadline(16)).foregroundStyle(Color.burntBrown)
-                        Text("وقعت بالفخ").font(.system(.caption, design: .rounded)).foregroundStyle(Color.burntBrown.opacity(0.9))
+                        Text("حكمك طاح وقيمك راح")
+                            .font(.arabicHeadline(16))
+                            .foregroundStyle(Color.burntBrown)
+                        Text("وقعت بالفخ")
+                            .font(.system(.caption, design: .rounded))
+                            .foregroundStyle(Color.burntBrown.opacity(0.9))
                     }
                     .padding(.vertical, 10)
                 } else if let ui = UIImage(named: card.imageName) {
-                    Image(uiImage: ui).resizable().scaledToFit().clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    Image(uiImage: ui)
+                        .resizable()
+                        .scaledToFit()
+                        .clipShape(
+                            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        )
                 } else {
-                    RoundedRectangle(cornerRadius: 14).fill(.white)
+                    RoundedRectangle(cornerRadius: 14)
+                        .fill(.white)
                     VStack(spacing: 6) {
                         Image(systemName: "photo").font(.title)
                         Text(card.imageName).font(.caption2)
                     }
                 }
             }
-            .rotation3DEffect(.degrees(card.isFaceUp ? 0 : -180), axis: (x: 0, y: 1, z: 0))
+            .rotation3DEffect(.degrees(card.isFaceUp ? 0 : -180),
+                              axis: (x: 0, y: 1, z: 0))
             .opacity(card.isFaceUp ? 1 : 0)
         }
         .animation(.easeInOut(duration: 0.3), value: card.isFaceUp)
