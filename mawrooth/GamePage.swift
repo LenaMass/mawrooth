@@ -68,7 +68,9 @@ struct RoundedCorner: Shape {
     var corners: UIRectCorner = .allCorners
 
     func path(in rect: CGRect) -> Path {
-        let path = UIBezierPath(roundedRect: rect, byRoundingCorners: corners, cornerRadii: CGSize(width: radius, height: radius))
+        let path = UIBezierPath(roundedRect: rect,
+                                byRoundingCorners: corners,
+                                cornerRadii: CGSize(width: radius, height: radius))
         return Path(path.cgPath)
     }
 }
@@ -86,6 +88,8 @@ struct PopUpMessageView: View {
     
     // Action to perform on save
     let saveAction: () -> Void
+    // Action to perform when user closes with X button
+    let closeAction: () -> Void
 
     let backgroundColor = Color(hex: "8D87C0")
     let saveButtonColor = Color(hex: "F1B438")
@@ -114,6 +118,7 @@ struct PopUpMessageView: View {
                                     
                                 // Close Button (Dismisses the Pop-up)
                                 Button {
+                                    closeAction()
                                     dismiss()
                                 } label: {
                                     Image(systemName: "xmark.circle.fill")
@@ -267,13 +272,20 @@ struct gamePage: View {
     }
 }
 
-// =================== GAME SCREEN (Updated to use EnvironmentObject) ===================
-// NOTE: MawroothDataStore must be defined in your project for this to compile.
+// =================== GAME SCREEN (EnvironmentObject + Flashing Timer + Non-Repeating Facts) ===================
 struct GameScreen: View {
     @StateObject private var vm = GameVM()
     @Environment(\.dismiss) private var dismiss
     // 🔑 Inject the Data Store as an EnvironmentObject
     @EnvironmentObject var mawroothStore: MawroothDataStore
+    
+    // 🔴 controls the flashing animation of the timer
+    @State private var isFlashing = false
+    
+    // 🔴 convenience flag for "critical" last 10 seconds
+    private var isCriticalTime: Bool {
+        vm.timeRemaining <= 10 && vm.timeRemaining > 0
+    }
 
     var body: some View {
         ZStack {
@@ -281,7 +293,6 @@ struct GameScreen: View {
             if let bg = UIImage(named: "BG") {
                 Image(uiImage: bg)
                     .resizable()
-                    .scaledToFill()
                     .scaledToFill()
                     .ignoresSafeArea()
                     .overlay(
@@ -299,23 +310,65 @@ struct GameScreen: View {
             VStack(spacing: 12) {
                 // Top bar...
                 HStack(spacing: 12) {
-                    Button { vm.stopTimer(); dismiss() } label: { Image(systemName: "chevron.backward").font(.title3.weight(.semibold)) }
+                    Button {
+                        vm.stopTimer()
+                        dismiss()
+                    } label: {
+                        Image(systemName: "chevron.backward")
+                            .font(.title3.weight(.semibold))
+                    }
+                    
                     Spacer()
+                    
+                    // 🔴 TIMER PILL (reacts when time <= 10)
                     HStack(spacing: 6) {
                         Image(systemName: "clock")
-                        Text(vm.timeString).font(.system(.subheadline, design: .rounded).monospacedDigit())
+                        Text(vm.timeString)
+                            .font(.system(.subheadline, design: .rounded).monospacedDigit())
                     }
-                    .padding(.vertical, 6).padding(.horizontal, 10).background(Capsule().fill(Color.purple.opacity(0.15)))
+                    // text + icon color
+                    .foregroundColor(isCriticalTime ? .red : .primary)
+                    .padding(.vertical, 6)
+                    .padding(.horizontal, 10)
+                    .background(
+                        Capsule().fill(
+                            isCriticalTime
+                            ? Color.red.opacity(0.15)
+                            : Color.purple.opacity(0.15)
+                        )
+                    )
+                    // 🔴 flashing effect (opacity animation)
+                    .opacity(isCriticalTime
+                             ? (isFlashing ? 0.25 : 1.0)
+                             : 1.0)
+                    .animation(
+                        isCriticalTime
+                        ? .easeInOut(duration: 0.5).repeatForever(autoreverses: true)
+                        : .default,
+                        value: isFlashing
+                    )
 
-                    Button { vm.restart() } label: { Image(systemName: "arrow.counterclockwise") }
+                    Button {
+                        vm.restart()
+                    } label: {
+                        Image(systemName: "arrow.counterclockwise")
+                    }
                     .disabled(vm.lockBoard)
                 }
-                .tint(.purple).padding(.horizontal).padding(.top, 6).overlay(
-                    Text("طابق الكروت").font(.arabicHeadline(22)).offset(y: -10)
+                .tint(.purple)
+                .padding(.horizontal)
+                .padding(.top, 6)
+                .overlay(
+                    Text("طابق الكروت")
+                        .font(.arabicHeadline(22))
+                        .offset(y: -10)
                 )
 
                 // GRID 3x3
-                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: 3), spacing: 12) {
+                LazyVGrid(
+                    columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: 3),
+                    spacing: 12
+                ) {
                     ForEach(vm.cards) { card in
                         CardView(card: card)
                             .onTapGesture { vm.tap(card) }
@@ -323,7 +376,8 @@ struct GameScreen: View {
                             .aspectRatio(2/3, contentMode: .fit)
                     }
                 }
-                .padding(.horizontal).padding(.bottom, 6)
+                .padding(.horizontal)
+                .padding(.bottom, 6)
 
                 // Footer
                 HStack {
@@ -338,7 +392,29 @@ struct GameScreen: View {
         .navigationBarBackButtonHidden(true)
         .onDisappear { vm.stopTimer() }
         
-        // WIN POP-UP
+        // 🔴 Start/stop flashing when time changes
+        .onChange(of: vm.timeRemaining) { oldValue, newValue in
+            // Start flashing exactly when we enter the last 10 seconds
+            if newValue == 10 && oldValue > 10 {
+                withAnimation(.easeInOut(duration: 0.5).repeatForever(autoreverses: true)) {
+                    isFlashing.toggle()
+                }
+            }
+            
+            // Stop flashing when time is up or after a restart
+            if newValue == 0 || newValue > 10 {
+                isFlashing = false
+            }
+        }
+        
+        // When win pop-up is about to show, pick a fact that is NOT already saved
+        .onChange(of: vm.showWinPopUp) { oldValue, newValue in
+            if newValue {
+                vm.selectRandomWinMessage(excludingSavedFrom: mawroothStore)
+            }
+        }
+
+// WIN POP-UP
         .fullScreenCover(isPresented: $vm.showWinPopUp) {
             PopUpMessageView(
                 popUpTitle: "إنجاز عظيم!",
@@ -357,14 +433,16 @@ struct GameScreen: View {
                     let messageToSave = vm.currentWinMessage
                     
                     // Perform the save operation using the injected store
-                    // This uses the externally defined MawroothDataStore.save function
                     mawroothStore.save(message: messageToSave, timeTaken: timeRecord)
 
                     vm.showWinPopUp = false
                     vm.restart()
+                },
+                closeAction: {
+                    vm.showWinPopUp = false
+                    vm.restart()
                 }
             )
-            // --- MODIFICATION 3: Added presentationBackground(.clear) ---
             .presentationBackground(.clear)
         }
         
@@ -378,7 +456,6 @@ struct GameScreen: View {
                 messageColor: .white,
                 messageFontSize: 16,
                 closeAction: {
-                    // This action runs when the user taps the close button
                     vm.showLossPopUp = false
                     vm.restart()
                 }
@@ -426,17 +503,25 @@ final class GameVM: ObservableObject {
         "السعودية هي أكبر دولة في العالم من دون أنهار.",
         "يوجد في المملكة حوالي 60 لهجة محكيّة رئيسية ويتفرع منها لهجات أخرى، وتختلف بحسَب المنطقة أو القبيلة",
         "يُستخدم زيت الورد الطائفي في صناعة عطور عالمية من قبل علامات تجارية مرموقة مثل ديور ، جيرلان، نينا ريتشي",
-        "تم ادراج القهوه السعوديه في عام  2024 ضمن قائمة التراث الإنساني غير المادي في اليونسكو، لتصبح إحدى علامات الهوية الوطنية المميزة للمملكة",
-        "تمتد مساحة مطار الملك فهد الدولي  في الدمام حوالي 776 كيلومتر مربع، مما يجعله الأكبر من حيث المساحة في العالم",
+        "تم ادراج القهوه السعوديه في عام  2024 ضمن قائمة التراث الإنساني غير المادي في اليونسكو، لتصبح إحدى علامات الهوية الوطنية المميزة للمملكة",
+        "تمتد مساحة مطار الملك فهد الدولي  في الدمام حوالي 776 كيلومتر مربع، مما يجعله الأكبر من حيث المساحة في العالم",
         "يعدّ جبل السودة الواقع في جنوب المملكة أحد أكثر الجبال إرتفاعاً في شبه الجزيرة العربية",
         "يقام مهرجان الملك عبد العزيز للإبل سنوياً على مقربة من الرياض، ويعتبر المهرجان الأكبر من نوعه على مستوى العالم.",
 
     ]
     
-    // 🔑 NEW: Function to select a random, new fact
-    private func selectRandomWinMessage() {
-        if let randomFact = saudiHeritageFacts.randomElement() {
-            self.currentWinMessage = randomFact
+    // 🔑 Function to select a random, possibly filtered fact
+    func selectRandomWinMessage(excludingSavedFrom store: MawroothDataStore? = nil) {
+        // 1. Collect messages already saved (if a store is provided)
+        let savedMessages = Set(store?.savedItems.map { $0.message } ?? [])
+
+        // 2. Filter facts that are NOT saved yet
+        let availableFacts = saudiHeritageFacts.filter { !savedMessages.contains($0) }
+
+        // 3. Prefer unsaved facts; if all are saved, fall back to any fact
+        if let fact = (availableFacts.isEmpty ? saudiHeritageFacts.randomElement()
+                                              : availableFacts.randomElement()) {
+            self.currentWinMessage = fact
         }
     }
 
@@ -542,8 +627,7 @@ final class GameVM: ObservableObject {
         lockBoard = true
         
         if won {
-            // WIN: Select a random message before showing the pop-up
-            self.selectRandomWinMessage()
+            // WIN: Select a message (later refined using saved items via GameScreen)
             self.showWinPopUp = true
             Haptics.success()
         } else {
@@ -618,3 +702,4 @@ struct CardView: View {
         .animation(.easeInOut(duration: 0.3), value: card.isFaceUp)
     }
 }
+
