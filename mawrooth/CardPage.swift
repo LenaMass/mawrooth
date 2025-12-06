@@ -5,61 +5,51 @@ func cardPageUndoAction() {
     print("Undo Action Button Tapped!")
 }
 
-// NOTE: Color and Font extensions are removed as requested (assuming they exist in other files).
-// NOTE: MawroothItem and MawroothDataStore are assumed to be in a separate file (e.g., MawroothModels.swift)
-// and are not defined here to avoid "Invalid redeclaration" errors.
-
-// MARK: - MawroothCardView (Color changed, stroke removed)
+// MARK: - MawroothCardView (grid card)
 struct MawroothCardView: View {
     let item: MawroothItem
     
-    // Assuming Color(hex: ...) and Font.arabicHeadline(...) are available via other files
     let purpleOverlayColor = Color(hex: "8D87C0")
     let iconColor = Color(hex: "F1B438")
-    // 🔑 Changed message text color to the yellow-orange icon color
     let messageTextColor = Color(hex: "F1B438")
     
     var body: some View {
         ZStack(alignment: .topLeading) {
-            // 1. Base Image
+            // Base Image
             Image("BGmessage")
                 .resizable()
                 .scaledToFill()
                 .frame(width: 170, height: 170)
                 .clipped()
             
-            // 2. Purple Overlay on top of the image
+            // Purple Overlay
             purpleOverlayColor.opacity(0.7)
                 .frame(width: 170, height: 170)
                 .cornerRadius(15)
 
             // Text Content
             VStack(alignment: .trailing, spacing: 5) {
-                // Top Flag Icon
+                // Flag Icon
                 HStack {
                     Image("FlagG")
                         .resizable()
                         .scaledToFit()
-                        .frame(width: 30, height: 20)
+                        .frame(width: 30, height: 30)
                         .padding(.leading, 12)
                         .padding(.top, 12)
                     Spacer()
                 }
 
-                // Message Text (Bold and F1B438 Color)
+                // Message Text (short, clipped for grid)
                 Text(item.message)
-                    // 🔑 Applied bold font and Arabic headline style
                     .font(.arabicHeadline(17, weight: .bold))
-                    // 🔑 Applied the new yellow-orange color
                     .foregroundColor(messageTextColor)
-                    
                     .multilineTextAlignment(.trailing)
                     .lineLimit(5)
                     .minimumScaleFactor(0.8)
                     .padding(.horizontal, 12)
                 
-                Spacer() // Pushes content up
-                
+                Spacer()
             }
             .frame(width: 170, height: 170)
         }
@@ -75,16 +65,22 @@ struct CardPage: View {
     @Environment(\.dismiss) var dismiss
     @EnvironmentObject var mawroothStore: MawroothDataStore
     
-    // Assuming Color(hex: ...) is available via other files
     let purpleColor = Color(hex: "8D87C0")
     let yellowIconColor = Color(hex: "F1B438")
     
-    // Grid items for a two-column layout
     let columns = [
         GridItem(.adaptive(minimum: 150), spacing: 15)
     ]
+    
+    // 🔹 Currently selected card for popup
+    @State private var selectedItem: MawroothItem? = nil
 
-    private func customToolbarButton(systemName: String, color: Color, size: CGFloat = 28, weight: Font.Weight = .semibold) -> some View {
+    private func headerBackIcon(
+        systemName: String = "chevron.backward",
+        color: Color,
+        size: CGFloat = 30,
+        weight: Font.Weight = .semibold
+    ) -> some View {
         Image(systemName: systemName)
             .font(.system(size: size, weight: weight))
             .foregroundColor(color)
@@ -92,73 +88,138 @@ struct CardPage: View {
 
     var body: some View {
         NavigationStack {
-            
-            ZStack {
-                // 1. BACKGROUND LAYER (for the entire page)
-                Image("BG")
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
-                    .ignoresSafeArea()
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                
-                // 2. SAVED MAWROOTH GRID LIST
-                ScrollView {
-                    VStack(spacing: 20) {
-                        // ADJUSTED SPACER HEIGHT: Pushes content further down
-                        Spacer().frame(height: 150)
-                        
-                        if mawroothStore.savedItems.isEmpty {
-                            Text("لا يوجد موروث محفوظ حتى الآن")
-                                .font(.arabicHeadline(20, weight: .bold))
-                                .multilineTextAlignment(.center)
-                                .foregroundColor(.gray)
-                                .padding(.top, 100)
-                                .frame(maxWidth: .infinity)
-                        } else {
-                            // Display items in a LazyVGrid
-                            LazyVGrid(columns: columns, spacing: 15) {
-                                ForEach(mawroothStore.savedItems) { item in
-                                    MawroothCardView(item: item)
+            GeometryReader { geo in
+                ZStack(alignment: .top) {
+                    // Background full-screen
+                    Image("BG")
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                        .ignoresSafeArea()
+                    
+                    // Main vertical layout (header + content)
+                    VStack(spacing: 0) {
+                        // 🔝 Custom header, positioned using safe area insets
+                        HStack(spacing: 0) {
+                            headerBackIcon(color: purpleColor)
+                                .contentShape(Rectangle())
+                                .onTapGesture {
+                                    dismiss()
+                                }
+                            
+                            Spacer()
+                            
+                            Image("cardTitle")
+                                .resizable()
+                                .scaledToFit()
+                                .padding(.horizontal, 100)
+                            
+                            // Balance the width of the back arrow
+                            Spacer()
+                                .frame(width: 35)
+                        }
+                        .padding(.top, geo.safeAreaInsets.top) // below notch/status bar
+                        .padding(.horizontal, 20)
+                    
+                        // 🔽 Scroll content starts *below* header
+                        ScrollView {
+                            VStack(spacing: 10) {
+                                Spacer().frame(height: 30) // space between header & first row
+                                
+                                if mawroothStore.savedItems.isEmpty {
+                                    Text("لا يوجد موروث محفوظ حتى الآن")
+                                        .font(.arabicHeadline(20, weight: .bold))
+                                        .multilineTextAlignment(.center)
+                                        .foregroundColor(.gray)
+                                        .padding(.top, 150)
+                                        .frame(maxWidth: .infinity)
+                                } else {
+                                    LazyVGrid(columns: columns, spacing: 15) {
+                                        ForEach(mawroothStore.savedItems) { item in
+                                            // 🔹 Tap card to show full popup
+                                            MawroothCardView(item: item)
+                                                .onTapGesture {
+                                                    withAnimation(.spring(response: 0.35,
+                                                                          dampingFraction: 0.8)) {
+                                                        selectedItem = item
+                                                    }
+                                                }
+                                        }
+                                    }
+                                    .padding(.horizontal, 25)
                                 }
                             }
-                            .padding(.horizontal, 20)
+                            .padding(.bottom, 40)
+                            .frame(maxWidth: .infinity, alignment: .center)
                         }
+                        .scrollIndicators(.hidden)
                     }
-                    .padding(.top, 20)
-                    .padding(.bottom, 40)
-                    .frame(maxWidth: .infinity, alignment: .center)
-                }
-                .scrollIndicators(.hidden)
-            }
-            .toolbar {
-                // Left Button (Back)
-                ToolbarItem(placement: .topBarLeading) {
-                    Button {
-                        dismiss()
-                    } label: {
-                        customToolbarButton(systemName: "chevron.backward", color: purpleColor, size: 24)
-                            .offset(y: 10)
-                            .padding(.leading, 0)
+                    .frame(width: geo.size.width, height: geo.size.height, alignment: .top)
+                    
+                    // 🔸 POPUP OVERLAY FOR FULL CARD
+                    if let selected = selectedItem {
+                        ZStack {
+                            // Dimmed background
+                            Color.black.opacity(0.45)
+                                .ignoresSafeArea()
+                            
+                            // Full card popup
+                            VStack(alignment: .trailing, spacing: 16) {
+                                // Optional flag / icon row
+                                HStack {
+                                    Spacer()
+                                    Image("FlagG")
+                                        .resizable()
+                                        .scaledToFit()
+                                        .frame(width: 40, height: 26)
+                                }
+                                
+                                // Full message text (no lineLimit)
+                                Text(selected.message)
+                                    .font(.arabicHeadline(20, weight: .bold))
+                                    .foregroundColor(Color(hex: "F1B438"))
+                                    .multilineTextAlignment(.trailing)
+                                    .fixedSize(horizontal: false, vertical: true)
+                                
+                                // (Optional) time/date info if you ever want it:
+                                // Text(selected.timeTaken)
+                                //     .font(.system(size: 14, weight: .regular))
+                                //     .foregroundColor(.white.opacity(0.8))
+                                //     .frame(maxWidth: .infinity, alignment: .leading)
+                            }
+                            .padding(20)
+                            .background(
+                                ZStack {
+                                    Image("BGmessage")
+                                        .resizable()
+                                        .scaledToFill()
+                                        .clipped()
+                                    Color(hex: "8D87C0").opacity(0.75)
+                                }
+                            )
+                            .cornerRadius(20)
+                            .shadow(color: .black.opacity(0.4), radius: 18, x: 0, y: 10)
+                            .padding(.horizontal, 30)
+                            .frame(maxWidth: 500) // nicer on iPad as well
+                            .transition(.scale.combined(with: .opacity))
+                        }
+                        // Tap ANYWHERE to dismiss
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.9)) {
+                                selectedItem = nil
+                            }
+                        }
+                        .zIndex(1) // Make sure it's above everything else
                     }
                 }
-                
-                // Center Title - IMAGE
-                ToolbarItem(placement: .principal) {
-                    Image("cardTitle")
-                        .resizable()
-                        .scaledToFit()
-                        .frame(height: 40)
-                        .offset(y: 35)
-                }
             }
-            .toolbarBackground(.hidden, for: .navigationBar)
+            .toolbar(.hidden, for: .navigationBar)
         }
     }
 }
 
-// MARK: - Preview Provider
+// MARK: - Preview
 #Preview {
-    // Injecting sample data for the preview
     let previewStore = MawroothDataStore()
     
     previewStore.savedItems = [
@@ -170,9 +231,9 @@ struct CardPage: View {
                      date: Date().addingTimeInterval(-200000), timeTaken: "الزمن: 55 ثانية")
     ]
     
-    return Color.white
-        .fullScreenCover(isPresented: .constant(true)) {
-            CardPage()
-                .environmentObject(previewStore)
-        }
+    return NavigationStack {
+        CardPage()
+            .environmentObject(previewStore)
+    }
 }
+

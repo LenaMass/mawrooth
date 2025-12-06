@@ -1,18 +1,17 @@
 import SwiftUI
 
-// Assume the Haptics, Font extension, Color extension, GCard, GameVM, GameScreen,
-// CardPage, and MawroothDataStore structs are available or imported.
-
 struct ContentView: View {
     
-    // 🔑 FIX 1: Make ContentView the source of truth for the data store
-    // This store will be shared across the entire app
+    // Shared data store for the whole app
     @StateObject private var mawroothStore = MawroothDataStore()
     
     @State private var startButtonScale: CGFloat = 1.0
     @State private var iconButtonScale: CGFloat = 1.0
     
-    // 🎯 KEY: State to control the modal presentation of CardPage
+    // Controls navigation to the GameScreen
+    @State private var navigateToGame = false
+    
+    // Controls showing CardPage
     @State private var showingCardPage = false
     
     let customOrange = Color(red: 238/255, green: 100/255, blue: 40/255)
@@ -34,9 +33,7 @@ struct ContentView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .ignoresSafeArea()
                 
-                // This ZStack containing Image("Z") looks complex and might be causing issues.
-                // I'm keeping it as you provided, but be aware of the large negative padding.
-                ZStack{
+                ZStack {
                     Image("Z")
                         .padding(.top, -359)
                         .padding(.leading, -68)
@@ -50,44 +47,35 @@ struct ContentView: View {
                         .padding(.top, 50)
                     
                     Spacer()
-
-                    // "ابدأ" Button (Start Button) - NavigationLink
-                    NavigationLink {
-                        // 🎯 ACTION: Navigate to the GameScreen
-                        GameScreen()
-                            // 🔑 FIX 2: Inject the store into the NavigationLink destination
-                            .environmentObject(mawroothStore)
+                    
+                    // START BUTTON
+                    Button {
+                        animateButton(scale: &startButtonScale, isPressed: true)
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.08) {
+                            animateButton(scale: &startButtonScale, isPressed: false)
+                            navigateToGame = true   // modern navigation triggers here
+                        }
                     } label: {
                         Text("ابدأ")
                             .font(.system(size: 30, weight: .heavy))
-                            .fontWeight(.heavy)
                             .foregroundColor(.white)
                             .frame(width: 180, height: 60)
                             .background(customOrange)
                             .cornerRadius(55)
                             .shadow(color: Color.black.opacity(0.4), radius: 6, x: 5, y: 4)
                             .scaleEffect(startButtonScale)
-                            .simultaneousGesture(
-                                DragGesture(minimumDistance: 0)
-                                    .onChanged { _ in
-                                        animateButton(scale: &startButtonScale, isPressed: true)
-                                    }
-                                    .onEnded { _ in
-                                        animateButton(scale: &startButtonScale, isPressed: false)
-                                    }
-                            )
                     }
                     
                     Spacer().frame(height: 10)
                     
-                    // Icon Button (Presents CardPage modally)
-                    Button(action: {
+                    // Icon Button -> CardPage
+                    Button {
                         animateButton(scale: &iconButtonScale, isPressed: true)
                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                             animateButton(scale: &iconButtonScale, isPressed: false)
                             showingCardPage = true
                         }
-                    }) {
+                    } label: {
                         Image(systemName: "book.fill")
                             .font(.title)
                             .foregroundColor(.white)
@@ -97,25 +85,22 @@ struct ContentView: View {
                             .shadow(color: Color.black.opacity(0.4), radius: 6, x: 5, y: 4)
                     }
                     .scaleEffect(iconButtonScale)
-                    .simultaneousGesture(
-                        DragGesture(minimumDistance: 0)
-                            .onChanged { _ in
-                                animateButton(scale: &iconButtonScale, isPressed: true)
-                            }
-                            .onEnded { _ in
-                                animateButton(scale: &iconButtonScale, isPressed: false)
-                            }
-                    )
                     
-                    Spacer() // Occupy remaining space
+                    Spacer()
                 }
-                .padding(.bottom, -200) // Your original padding
+                .padding(.bottom, -200)
+            }
+            
+            // ⭐ Modern navigationDestination
+            .navigationDestination(isPresented: $navigateToGame) {
+                GameScreen()
+                    .environmentObject(mawroothStore)
             }
         }
-        // 🎯 KEY: This presents CardPage when showingCardPage is true.
+        
+        // Full screen cover for CardPage
         .fullScreenCover(isPresented: $showingCardPage) {
             CardPage()
-                // 🔑 FIX 3: Inject the store into the fullScreenCover destination
                 .environmentObject(mawroothStore)
         }
     }
@@ -123,7 +108,6 @@ struct ContentView: View {
 
 #Preview {
     ContentView()
-        // If ContentView is your App's root, adding the store here
-        // prevents a crash in the Preview environment.
         .environmentObject(MawroothDataStore())
 }
+

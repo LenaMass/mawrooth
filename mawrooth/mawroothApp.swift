@@ -1,21 +1,32 @@
-//
-//  mawroothApp.swift
-//  mawrooth
-//
-//  Created by Lena Saeed Alhuthali on 08/04/1447 AH.
-//
-
 import SwiftUI
+import UIKit   // 👈 add this
 
-// This file must be the root of your application
 @main
 struct MawroothApp: App {
-    // 1. Create a SINGLE instance of the shared data manager
-
+    
+    init() {
+        // Configure a transparent navigation bar appearance
+        let appearance = UINavigationBarAppearance()
+        appearance.configureWithTransparentBackground()
+        appearance.backgroundColor = .clear
+        
+        // 👇 Make all bar button items use "plain" style (no circle / pill)
+        let plainButtons = UIBarButtonItemAppearance(style: .plain)
+        appearance.buttonAppearance = plainButtons
+        appearance.doneButtonAppearance = plainButtons
+        appearance.backButtonAppearance = plainButtons
+        
+        // Apply to all navigation bars in the app
+        let navBar = UINavigationBar.appearance()
+        navBar.standardAppearance = appearance
+        navBar.scrollEdgeAppearance = appearance
+        navBar.compactAppearance = appearance
+    }
+    
     var body: some Scene {
         WindowGroup {
             ContentView()
-            
         }
     }
 }
+
